@@ -3,18 +3,26 @@ import NIOConcurrencyHelpers
 
 /// Cancellation-aware async semaphore.
 ///
-/// Implemented as a lock-protected class so it can be used from `@Sendable`
-/// cancellation handlers without crossing actor isolation boundaries.
+/// Implemented as a lock-protected class so it can be called from `@Sendable`
+/// cancellation handlers without crossing actor-isolated state.
+/// Use `wait()` to acquire a permit (suspending if none are available) and
+/// `signal()` to release one.
 public final class AsyncSemaphore: @unchecked Sendable {
     private let lock = NIOLock()
     private var available: Int
     private var waiters: [(id: UUID, continuation: CheckedContinuation<Void, any Error>)] = []
     private var headIndex = 0
 
+    /// Creates a semaphore with the given initial number of available permits.
+    ///
+    /// - Parameter value: The initial permit count. Negative values are treated as `0`.
     public init(value: Int) {
         self.available = max(0, value)
     }
 
+    /// Acquires a permit, suspending until one is available or the task is cancelled.
+    ///
+    /// - Throws: `CancellationError` if the current task is cancelled while waiting.
     public func wait() async throws {
         if Task.isCancelled { throw CancellationError() }
 
@@ -47,6 +55,7 @@ public final class AsyncSemaphore: @unchecked Sendable {
         )
     }
 
+    /// Releases a permit, resuming one waiting task if present.
     public func signal() {
         lock.withLock {
             if headIndex > 32 && headIndex * 2 > waiters.count {
