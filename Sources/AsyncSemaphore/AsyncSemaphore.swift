@@ -7,6 +7,7 @@ import NIOConcurrencyHelpers
 /// cancellation handlers without crossing actor-isolated state.
 /// Use `wait()` to acquire a permit (suspending if none are available) and
 /// `signal()` to release one.
+@available(macOS 10.15, iOS 13, tvOS 13, watchOS 6, *)
 public final class AsyncSemaphore: @unchecked Sendable {
     private let lock = NIOLock()
     private var available: Int
